@@ -133,16 +133,6 @@ On a **stratified 80/20 train/val split** with the default pipeline, a represent
 
 Exact numbers depend on split seed, hardware, and training length; the validation set is small, so metrics can vary run to run.
 
-## Loss (reference)
-
-Student loss:
-
-\[
-\mathcal{L} = \alpha \cdot T^2 \cdot \mathrm{KL}\big(\sigma(z_t/T)\,\|\,\sigma(z_s/T)\big) + (1-\alpha) \cdot \mathrm{CE}(y, z_s)
-\]
-
-with optional label smoothing on the CE term in code. Implementation: [`src/losses.py`](src/losses.py).
-
 ## License and third-party weights
 
 Pretrained backbones are loaded from **torchvision** (ImageNet-1K). Respect the licenses of PyTorch, torchvision, and your dataset sources.
