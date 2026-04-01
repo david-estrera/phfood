@@ -2,17 +2,89 @@
 
 PyTorch project for classifying **five Filipino dishes** using a **ResNet50 teacher** and a **MobileNetV3-Small student**, trained with **Hinton-style knowledge distillation**. Targets local training on **Intel Arc (XPU)** or CPU/CUDA via the same code paths.
 
-## Dataset layout
+## Data
 
-Place images under `data/` using `torchvision.datasets.ImageFolder` conventions: one subfolder per class (example names from this repo):
+### What is being classified
 
-- `adobo - Google Search`
-- `kare-kare - Google Search`
-- `lechon - Google Search`
-- `sinigang - Google Search`
-- `sisig - Google Search`
+The model performs **5-way** image classification across these Filipino dishes:
 
-Supported extensions include `.jpg`, `.jpeg`, `.png`, and `.webp`. The loader converts palette/transparency images to RGB for stable training.
+| Dish (concept) | Example folder name in this repo |
+|----------------|-------------------------------------|
+| Adobo | `adobo - Google Search` |
+| Kare-kare | `kare-kare - Google Search` |
+| Lechon | `lechon - Google Search` |
+| Sinigang | `sinigang - Google Search` |
+| Sisig | `sisig - Google Search` |
+
+Folder names are whatever `ImageFolder` uses as class labels; PyTorch assigns class indices in **lexicographic order** of folder names (see `dataset.classes` and `dataset.class_to_idx` after loading). For cleaner logs or plots, you can rename folders to short names (e.g. `adobo`, `sinigang`) as long as each class remains one directory of images.
+
+### Layout on disk
+
+Use **`torchvision.datasets.ImageFolder`** layout: project-relative root set by `data_root` in [`configs/default.yaml`](configs/default.yaml) (default `data/`).
+
+```text
+data/
+├── adobo - Google Search/     # all images for class 0 (example)
+├── kare-kare - Google Search/
+├── lechon - Google Search/
+├── sinigang - Google Search/
+└── sisig - Google Search/
+```
+
+- **Formats:** `.jpg`, `.jpeg`, `.png`, `.webp` (and other extensions PIL can open).
+- **Filenames:** Any safe filename works; long or special-character names are fine.
+- **RGB handling:** Custom loader in [`src/data.py`](src/data.py) opens images with PIL, maps palette + transparency to **RGBA → RGB**, then converts other modes to **RGB** so training does not break on indexed-color PNGs.
+
+### Scale (reference counts)
+
+This project was developed with roughly **~470–500** images total after cleaning; one snapshot of the bundled layout was:
+
+- Adobo: 99 · Sinigang: 99 · Lechon: 92 · Kare-kare: 92 · Sisig: 92 → **474** images.
+
+Your counts will differ if you add/remove images. Small datasets benefit strongly from **pretrained** backbones, augmentation, and distillation—as used here.
+
+### Train / validation split
+
+- **Method:** **Stratified** split so each class appears proportionally in train and val (`sklearn.model_selection.train_test_split` with `stratify=targets`).
+- **Ratio:** `val_ratio` in config (default **0.2** → ~80% train, ~20% val).
+- **Reproducibility:** Fixed `seed` (default **42**) and a seeded `DataLoader` generator for train shuffling. The **same** split is reproduced when you re-run with the same `data_root`, `val_ratio`, and `seed`—so `evaluate.py` stays comparable to training.
+
+With ~474 images and 20% val, expect on the order of **~380 train / ~95 val** images (exact numbers depend on rounding per class).
+
+### Preprocessing and augmentation
+
+Configured in YAML and applied in [`src/data.py`](src/data.py):
+
+**Training (default):**
+
+- `RandomResizedCrop` to `img_size` (default **256**).
+- Optional **RandAugment** (`randaugment`, `randaugment_num_ops`, `randaugment_magnitude`).
+- `RandomHorizontalFlip`, `ColorJitter`.
+- `ToTensor`, optional **RandomErasing** on the tensor (`random_erasing_p`), then **ImageNet** `Normalize(mean, std)`.
+
+**Validation:**
+
+- Resize (short side), **center crop** to `img_size`, `ToTensor`, same ImageNet normalization.
+
+No augmentation is applied at validation time, so reported **Top-1** is a standard single-crop metric.
+
+### Adding data or classes
+
+- **More images:** Drop files into the existing class folders; keep one dish per folder to avoid label noise.
+- **New class:** Add a new subfolder under `data/`; set nothing in code if you only change the folder list—`num_classes` is inferred from `len(dataset.classes)`. You must **retrain** the teacher and student from scratch (or at least replace the final linear layers) when the number of classes changes.
+- **Corrupt files:** If training crashes on a specific path, remove or re-encode that image; you can temporarily scan with a small script that runs `Image.open(...).convert("RGB")` on every file.
+
+### Config keys (data-related)
+
+| Key | Role |
+|-----|------|
+| `data_root` | Root directory for `ImageFolder` (relative to repo root). |
+| `img_size` | Train crop and val crop size. |
+| `val_ratio` | Fraction of each class held out for validation. |
+| `seed` | Split + shuffle reproducibility. |
+| `num_workers` | `DataLoader` workers (often `0` on Windows). |
+| `randaugment`, `randaugment_num_ops`, `randaugment_magnitude` | Train-time RandAugment. |
+| `random_erasing_p` | Probability of random erasing on train tensors. |
 
 ## Repository layout
 
