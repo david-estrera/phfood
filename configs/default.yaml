@@ -1,0 +1,59 @@
+# Paths relative to project root (phfood/)
+data_root: data
+img_size: 256
+val_ratio: 0.2
+seed: 42
+num_workers: 0
+
+randaugment: true
+randaugment_num_ops: 2
+randaugment_magnitude: 12
+random_erasing_p: 0.25
+
+teacher:
+  # Phase 1: frozen backbone + head LR, then full fine-tune with low backbone LR
+  freeze_backbone_until_unfreeze: true
+  unfreeze_epoch: 40
+  phase1_lr: 0.03
+  lr: 0.00035
+  backbone_lr_ratio: 0.08
+  max_lr: 0.00035
+  batch_size_train: 12
+  batch_size_val: 24
+  epochs: 140
+  weight_decay: 0.02
+  optimizer: adamw
+  scheduler: cosine
+  label_smoothing: 0.04
+  mixup_alpha: 0.2
+  # Legacy single-phase flags (ignored when freeze_backbone_until_unfreeze + unfreeze_epoch set)
+  freeze_backbone: false
+
+student:
+  batch_size_train: 24
+  batch_size_val: 32
+  epochs: 140
+  lr: 0.0015
+  max_lr: 0.004
+  weight_decay: 0.025
+  optimizer: adamw
+  scheduler: cosine
+  label_smoothing: 0.04
+  mixup_alpha: 0.15
+
+distillation:
+  temperature: 5.0
+  alpha: 0.28
+  label_smoothing: 0.04
+
+checkpoints:
+  dir: checkpoints
+  teacher: checkpoints/teacher_best.pt
+  student: checkpoints/student_best.pt
+
+target_val_acc: 0.93
+
+benchmark:
+  warmup_steps: 20
+  timed_steps: 100
+  batch_size: 1
