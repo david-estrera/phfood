@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 import argparse
-import time
 
 import torch
 
 from src.data import make_loaders
+from src.eval_metrics import inference_benchmark
 from src.models import build_student, build_teacher
 from src.utils import (
     dataloader_augment_kwargs,
-    device_synchronize,
     get_device,
     load_config,
     project_root,
@@ -24,43 +23,19 @@ def _load_ckpt(path, device):
         return torch.load(path, map_location=device)
 
 
-@torch.no_grad()
-def benchmark_model(
-    model,
-    images: torch.Tensor,
-    device: torch.device,
-    warmup_steps: int,
-    timed_steps: int,
-    name: str,
-):
-    model.eval()
-    images = images.to(device, non_blocking=True)
-    bs = images.size(0)
-
-    for _ in range(warmup_steps):
-        _ = model(images)
-    device_synchronize(device)
-
-    device_synchronize(device)
-    t0 = time.perf_counter()
-    for _ in range(timed_steps):
-        _ = model(images)
-    device_synchronize(device)
-    t1 = time.perf_counter()
-
-    total_time = t1 - t0
-    total_images = timed_steps * bs
-    ms_per_image = (total_time / total_images) * 1000.0
-    images_per_sec = total_images / total_time
+def _print_bench(name: str, stats: dict[str, float]) -> None:
     print(
-        f"{name}: batch_size={bs} warmup={warmup_steps} timed_steps={timed_steps} "
-        f"-> {ms_per_image:.3f} ms/image, {images_per_sec:.1f} img/s (device)"
+        f"{name}: batch_size={int(stats['batch_size'])} "
+        f"warmup={int(stats['warmup_steps'])} "
+        f"timed_steps={int(stats['timed_steps'])} "
+        f"-> {stats['ms_per_image']:.3f} ms/image, "
+        f"{stats['images_per_sec']:.1f} img/s (device)"
     )
 
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Inference timing: teacher vs student on XPU/CUDA/CPU"
+        description="Inference timing: teacher vs student(s) on XPU/CUDA/CPU"
     )
     parser.add_argument(
         "--config",
@@ -97,30 +72,31 @@ def main():
         pad = bench_bs - images.size(0)
         images = torch.cat([images, images[:pad]], dim=0)
 
-    teacher_path = root / cfg["checkpoints"]["teacher"]
-    student_path = root / cfg["checkpoints"]["student"]
-
-    if teacher_path.is_file():
-        ckpt = _load_ckpt(teacher_path, device)
-        nc = ckpt.get("num_classes", len(classes_cfg))
-        teacher = build_teacher(nc).to(device)
-        teacher.load_state_dict(ckpt["model_state_dict"])
-        benchmark_model(
-            teacher, images, device, warmup, timed, "Teacher (ResNet50)"
+    ck = cfg["checkpoints"]
+    paths = [
+        ("Teacher (ResNet50)", "teacher", ck["teacher"]),
+        ("Student (MobileNetV3-Small, KD)", "student", ck["student"]),
+    ]
+    bl = ck.get("student_baseline")
+    if bl:
+        paths.append(
+            ("Student (MobileNetV3-Small, CE-only)", "student", bl)
         )
-    else:
-        print(f"Teacher checkpoint missing: {teacher_path}")
 
-    if student_path.is_file():
-        ckpt = _load_ckpt(student_path, device)
+    for label, kind, rel in paths:
+        path = root / rel
+        if not path.is_file():
+            print(f"{label}: checkpoint missing: {path}")
+            continue
+        ckpt = _load_ckpt(path, device)
         nc = ckpt.get("num_classes", len(classes_cfg))
-        student = build_student(nc).to(device)
-        student.load_state_dict(ckpt["model_state_dict"])
-        benchmark_model(
-            student, images, device, warmup, timed, "Student (MobileNetV3-Small)"
-        )
-    else:
-        print(f"Student checkpoint missing: {student_path}")
+        if kind == "teacher":
+            model = build_teacher(nc).to(device)
+        else:
+            model = build_student(nc).to(device)
+        model.load_state_dict(ckpt["model_state_dict"])
+        stats = inference_benchmark(model, images, device, warmup, timed)
+        _print_bench(label, stats)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,16 @@
+model,class_index,class_name,support,class_accuracy
+Teacher,0,adobo - Google Search,20,1.000000
+Teacher,1,kare-kare - Google Search,18,0.777778
+Teacher,2,lechon - Google Search,18,0.888889
+Teacher,3,sinigang - Google Search,20,0.950000
+Teacher,4,sisig - Google Search,19,0.947368
+Student_KD,0,adobo - Google Search,20,1.000000
+Student_KD,1,kare-kare - Google Search,18,1.000000
+Student_KD,2,lechon - Google Search,18,0.777778
+Student_KD,3,sinigang - Google Search,20,0.850000
+Student_KD,4,sisig - Google Search,19,0.947368
+Student_CE,0,adobo - Google Search,20,1.000000
+Student_CE,1,kare-kare - Google Search,18,0.944444
+Student_CE,2,lechon - Google Search,18,0.722222
+Student_CE,3,sinigang - Google Search,20,0.900000
+Student_CE,4,sisig - Google Search,19,0.947368

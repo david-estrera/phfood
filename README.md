@@ -100,8 +100,11 @@ phfood/
 │   ├── losses.py             # distillation loss
 │   ├── train_teacher.py      # ResNet50 training (optional two-phase)
 │   ├── train_distill.py      # student + KD from frozen teacher
+│   ├── train_student_baseline.py  # CE-only student -> student_baseline_best.pt
 │   ├── evaluate.py           # val Top-1 for both checkpoints
-│   ├── benchmark.py          # inference timing
+│   ├── benchmark.py          # inference timing (shared core in eval_metrics)
+│   ├── eval_metrics.py       # preds, confusion, per-class, inference_benchmark
+│   ├── report.py             # full report + JSON/CSV export
 │   └── utils.py              # config, device (xpu/cuda/cpu), aug kwargs
 ├── requirements.txt
 └── README.md
@@ -194,16 +197,92 @@ Optional: `python -m src.train_teacher --epochs N` (override epochs from YAML).
 
 Hyperparameters, augmentation (RandAugment, Random Erasing), image size, two-phase teacher settings, distillation `temperature` / `alpha`, and checkpoint paths live in [`configs/default.yaml`](configs/default.yaml).
 
-## Example results
+### Baseline student (no knowledge distillation)
 
-On a **stratified 80/20 train/val split** with the default pipeline, a representative run reported:
+To measure **how much KD helps**, train a second MobileNetV3-Small with **cross-entropy only** (same `student` hyperparameters and data setup as distillation). It saves to a **separate** file so your reported KD checkpoints stay untouched:
 
-| Model | Val Top-1 |
-|--------|-----------|
-| Teacher (ResNet50) | **91.58%** |
-| Student (MobileNetV3-Small) | **91.58%** |
+- **Output:** `checkpoints/student_baseline_best.pt` (see `checkpoints.student_baseline` in config).
+- **Does not overwrite** `teacher_best.pt` or `student_best.pt`.
 
-Exact numbers depend on split seed, hardware, and training length; the validation set is small, so metrics can vary run to run.
+```bash
+python -m src.train_student_baseline
+```
+
+### Full report (per-class accuracy, confusion CSV, inference time)
+
+[`src/report.py`](src/report.py) evaluates **Teacher**, **Student_KD** (`student_best.pt`), and **Student_CE** (baseline, if present) on the same validation split: overall Top-1, per-class counts/accuracy, sklearn-style `classification_report` in `summary.json`, confusion matrices as CSV, and inference timing (same logic as `benchmark.py`).
+
+```bash
+python -m src.report --output-dir reports
+```
+
+Artifacts (default under `reports/`):
+
+- `summary.json` — machine-readable metrics and timing; includes `kd_vs_ce` (KD minus CE Top-1) when both students exist.
+- `confusion_<Model>.csv` — confusion matrix per model.
+- `misclassified_<Model>.csv` — full path of each wrong validation image, true vs predicted class.
+- `misclassified_gallery_<Model>.html` — thumbnail grid in the browser (True vs predicted labels); open the file locally after running the report.
+- `per_class_long.csv` — long-format table for spreadsheets.
+
+For a quick **latency-only** comparison (including baseline if trained), use `python -m src.benchmark`.
+
+### Checkpoints for final reporting
+
+Keep **`checkpoints/teacher_best.pt`** and **`checkpoints/student_best.pt`** as your frozen KD run for the write-up. Use **`student_baseline_best.pt`** only for the ablation comparison; retraining baseline does not change the two KD checkpoints.
+
+## Results
+
+Figures below match the committed run documented in [`reports/summary.json`](reports/summary.json). Regenerate everything with:
+
+`python -m src.report --output-dir reports`
+
+### Validation split (from `summary.json`)
+
+| Field | Value |
+|-------|-------|
+| Validation samples | **95** (`validation.num_samples`) |
+| `val_ratio` | **0.2** |
+| Split `seed` | **42** |
+| Classes | 5 (`class_names`: adobo, kare-kare, lechon, sinigang, sisig — full folder names in JSON) |
+
+### Overall metrics (from `summary.json`)
+
+| Model | Val Top-1 | Best epoch (val) | Misclassified (val) | Macro F1 | Weighted F1 | ms / image | img/s |
+|--------|-----------|------------------|---------------------|----------|-------------|------------|-------|
+| Teacher (ResNet50) | **91.58%** | **114** | 8 | 0.9133 | 0.9148 | 47.43 | 21.09 |
+| Student (**with KD**) | **91.58%** | **25** | 8 | 0.9131 | 0.9144 | 2.16 | 462.0 |
+| Student (**CE-only**) | **90.53%** | **55** | 9 | 0.9014 | 0.9039 | 2.37 | 421.4 |
+
+- **Best epoch** is the checkpoint epoch stored when that model achieved its best validation accuracy (also written as `best_epoch` per model in `summary.json` after you re-run the report).
+- **Inference** uses the first validation batch; effective batch size **24** matches `teacher.batch_size_val` in [`configs/default.yaml`](configs/default.yaml).
+
+**KD vs CE-only** (`kd_vs_ce` in JSON): val Top-1 **+1.05 pp** (0.0105 absolute: 91.58% − 90.53%).
+
+### Per-class validation accuracy (from `summary.json` → `per_class`)
+
+Support = number of validation images per class (same for every model). Values are **class accuracy** (fraction correct within that class).
+
+| Class (short) | Support | Teacher | Student KD | Student CE |
+|-----------------|---------|---------|------------|------------|
+| Adobo | 20 | 100.0% | 100.0% | 100.0% |
+| Kare-kare | 18 | 77.8% | 100.0% | 94.4% |
+| Lechon | 18 | 88.9% | 77.8% | 72.2% |
+| Sinigang | 20 | 95.0% | 85.0% | 90.0% |
+| Sisig | 19 | 94.7% | 94.7% | 94.7% |
+
+### Viewing misclassified images
+
+CSV lists: [`reports/misclassified_Teacher.csv`](reports/misclassified_Teacher.csv), [`reports/misclassified_Student_KD.csv`](reports/misclassified_Student_KD.csv), [`reports/misclassified_Student_CE.csv`](reports/misclassified_Student_CE.csv).
+
+**HTML galleries** (thumbnails + true vs predicted labels):
+
+- [`reports/misclassified_gallery_Teacher.html`](reports/misclassified_gallery_Teacher.html)
+- [`reports/misclassified_gallery_Student_KD.html`](reports/misclassified_gallery_Student_KD.html)
+- [`reports/misclassified_gallery_Student_CE.html`](reports/misclassified_gallery_Student_CE.html)
+
+Open each `.html` file in your browser (double-click or “Open with”). Paths use `../data/...` relative to `reports/` so images load from the project `data/` folder. If a browser blocks local files, try another browser or open via a simple local HTTP server.
+
+Exact numbers change if you alter the split, seed, data, or hardware; re-run `src.report` and refresh `summary.json`, CSVs, and HTML galleries together.
 
 ## License and third-party weights
 

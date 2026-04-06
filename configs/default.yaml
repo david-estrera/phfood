@@ -50,6 +50,7 @@ checkpoints:
   dir: checkpoints
   teacher: checkpoints/teacher_best.pt
   student: checkpoints/student_best.pt
+  student_baseline: checkpoints/student_baseline_best.pt
 
 target_val_acc: 0.93
 

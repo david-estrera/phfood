@@ -1,0 +1,301 @@
+{
+  "class_names": [
+    "adobo - Google Search",
+    "kare-kare - Google Search",
+    "lechon - Google Search",
+    "sinigang - Google Search",
+    "sisig - Google Search"
+  ],
+  "models": {
+    "Teacher": {
+      "status": "ok",
+      "checkpoint": "checkpoints/teacher_best.pt",
+      "overall_accuracy": 0.9157894736842105,
+      "misclassified_count": 8,
+      "per_class": [
+        {
+          "class_index": 0,
+          "class_name": "adobo - Google Search",
+          "support": 20,
+          "correct": 20,
+          "class_accuracy": 1.0
+        },
+        {
+          "class_index": 1,
+          "class_name": "kare-kare - Google Search",
+          "support": 18,
+          "correct": 14,
+          "class_accuracy": 0.7777777777777778
+        },
+        {
+          "class_index": 2,
+          "class_name": "lechon - Google Search",
+          "support": 18,
+          "correct": 16,
+          "class_accuracy": 0.8888888888888888
+        },
+        {
+          "class_index": 3,
+          "class_name": "sinigang - Google Search",
+          "support": 20,
+          "correct": 19,
+          "class_accuracy": 0.95
+        },
+        {
+          "class_index": 4,
+          "class_name": "sisig - Google Search",
+          "support": 19,
+          "correct": 18,
+          "class_accuracy": 0.9473684210526315
+        }
+      ],
+      "classification_report": {
+        "adobo - Google Search": {
+          "precision": 0.9090909090909091,
+          "recall": 1.0,
+          "f1-score": 0.9523809523809523,
+          "support": 20.0
+        },
+        "kare-kare - Google Search": {
+          "precision": 1.0,
+          "recall": 0.7777777777777778,
+          "f1-score": 0.875,
+          "support": 18.0
+        },
+        "lechon - Google Search": {
+          "precision": 0.8421052631578947,
+          "recall": 0.8888888888888888,
+          "f1-score": 0.8648648648648649,
+          "support": 18.0
+        },
+        "sinigang - Google Search": {
+          "precision": 0.9047619047619048,
+          "recall": 0.95,
+          "f1-score": 0.926829268292683,
+          "support": 20.0
+        },
+        "sisig - Google Search": {
+          "precision": 0.9473684210526315,
+          "recall": 0.9473684210526315,
+          "f1-score": 0.9473684210526315,
+          "support": 19.0
+        },
+        "accuracy": 0.9157894736842105,
+        "macro avg": {
+          "precision": 0.920665299612668,
+          "recall": 0.9128070175438596,
+          "f1-score": 0.9132887013182265,
+          "support": 95.0
+        },
+        "weighted avg": {
+          "precision": 0.9203679054094566,
+          "recall": 0.9157894736842105,
+          "f1-score": 0.914755494537266,
+          "support": 95.0
+        }
+      },
+      "inference": {
+        "batch_size": 24.0,
+        "ms_per_image": 47.42704850000033,
+        "images_per_sec": 21.085014387939257,
+        "warmup_steps": 20.0,
+        "timed_steps": 100.0
+      }
+    },
+    "Student_KD": {
+      "status": "ok",
+      "checkpoint": "checkpoints/student_best.pt",
+      "overall_accuracy": 0.9157894736842105,
+      "misclassified_count": 8,
+      "per_class": [
+        {
+          "class_index": 0,
+          "class_name": "adobo - Google Search",
+          "support": 20,
+          "correct": 20,
+          "class_accuracy": 1.0
+        },
+        {
+          "class_index": 1,
+          "class_name": "kare-kare - Google Search",
+          "support": 18,
+          "correct": 18,
+          "class_accuracy": 1.0
+        },
+        {
+          "class_index": 2,
+          "class_name": "lechon - Google Search",
+          "support": 18,
+          "correct": 14,
+          "class_accuracy": 0.7777777777777778
+        },
+        {
+          "class_index": 3,
+          "class_name": "sinigang - Google Search",
+          "support": 20,
+          "correct": 17,
+          "class_accuracy": 0.85
+        },
+        {
+          "class_index": 4,
+          "class_name": "sisig - Google Search",
+          "support": 19,
+          "correct": 18,
+          "class_accuracy": 0.9473684210526315
+        }
+      ],
+      "classification_report": {
+        "adobo - Google Search": {
+          "precision": 0.9090909090909091,
+          "recall": 1.0,
+          "f1-score": 0.9523809523809523,
+          "support": 20.0
+        },
+        "kare-kare - Google Search": {
+          "precision": 0.8571428571428571,
+          "recall": 1.0,
+          "f1-score": 0.9230769230769231,
+          "support": 18.0
+        },
+        "lechon - Google Search": {
+          "precision": 0.875,
+          "recall": 0.7777777777777778,
+          "f1-score": 0.8235294117647058,
+          "support": 18.0
+        },
+        "sinigang - Google Search": {
+          "precision": 1.0,
+          "recall": 0.85,
+          "f1-score": 0.918918918918919,
+          "support": 20.0
+        },
+        "sisig - Google Search": {
+          "precision": 0.9473684210526315,
+          "recall": 0.9473684210526315,
+          "f1-score": 0.9473684210526315,
+          "support": 19.0
+        },
+        "accuracy": 0.9157894736842105,
+        "macro avg": {
+          "precision": 0.9177204374572796,
+          "recall": 0.9150292397660819,
+          "f1-score": 0.9130549254388264,
+          "support": 95.0
+        },
+        "weighted avg": {
+          "precision": 0.9195830485304168,
+          "recall": 0.9157894736842105,
+          "f1-score": 0.914367488980492,
+          "support": 95.0
+        }
+      },
+      "inference": {
+        "batch_size": 24.0,
+        "ms_per_image": 2.164370874997985,
+        "images_per_sec": 462.02802465678667,
+        "warmup_steps": 20.0,
+        "timed_steps": 100.0
+      }
+    },
+    "Student_CE": {
+      "status": "ok",
+      "checkpoint": "checkpoints/student_baseline_best.pt",
+      "overall_accuracy": 0.9052631578947369,
+      "misclassified_count": 9,
+      "per_class": [
+        {
+          "class_index": 0,
+          "class_name": "adobo - Google Search",
+          "support": 20,
+          "correct": 20,
+          "class_accuracy": 1.0
+        },
+        {
+          "class_index": 1,
+          "class_name": "kare-kare - Google Search",
+          "support": 18,
+          "correct": 17,
+          "class_accuracy": 0.9444444444444444
+        },
+        {
+          "class_index": 2,
+          "class_name": "lechon - Google Search",
+          "support": 18,
+          "correct": 13,
+          "class_accuracy": 0.7222222222222222
+        },
+        {
+          "class_index": 3,
+          "class_name": "sinigang - Google Search",
+          "support": 20,
+          "correct": 18,
+          "class_accuracy": 0.9
+        },
+        {
+          "class_index": 4,
+          "class_name": "sisig - Google Search",
+          "support": 19,
+          "correct": 18,
+          "class_accuracy": 0.9473684210526315
+        }
+      ],
+      "classification_report": {
+        "adobo - Google Search": {
+          "precision": 0.9090909090909091,
+          "recall": 1.0,
+          "f1-score": 0.9523809523809523,
+          "support": 20.0
+        },
+        "kare-kare - Google Search": {
+          "precision": 0.8095238095238095,
+          "recall": 0.9444444444444444,
+          "f1-score": 0.8717948717948718,
+          "support": 18.0
+        },
+        "lechon - Google Search": {
+          "precision": 0.8666666666666667,
+          "recall": 0.7222222222222222,
+          "f1-score": 0.7878787878787878,
+          "support": 18.0
+        },
+        "sinigang - Google Search": {
+          "precision": 1.0,
+          "recall": 0.9,
+          "f1-score": 0.9473684210526315,
+          "support": 20.0
+        },
+        "sisig - Google Search": {
+          "precision": 0.9473684210526315,
+          "recall": 0.9473684210526315,
+          "f1-score": 0.9473684210526315,
+          "support": 19.0
+        },
+        "accuracy": 0.9052631578947369,
+        "macro avg": {
+          "precision": 0.9065299612668033,
+          "recall": 0.9028070175438596,
+          "f1-score": 0.9013582908319749,
+          "support": 95.0
+        },
+        "weighted avg": {
+          "precision": 0.9089815447710184,
+          "recall": 0.9052631578947369,
+          "f1-score": 0.9038854036083954,
+          "support": 95.0
+        }
+      },
+      "inference": {
+        "batch_size": 24.0,
+        "ms_per_image": 2.372931874997448,
+        "images_per_sec": 421.4195993305014,
+        "warmup_steps": 20.0,
+        "timed_steps": 100.0
+      }
+    }
+  },
+  "kd_vs_ce": {
+    "student_kd_accuracy": 0.9157894736842105,
+    "student_ce_accuracy": 0.9052631578947369,
+    "absolute_gain_kd_minus_ce": 0.010526315789473606
+  }
+}
