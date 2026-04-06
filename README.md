@@ -259,43 +259,84 @@ Figures below match the committed run documented in [`reports/summary.json`](rep
 
 | Model | Val Top-1 | Best epoch (val) | Misclassified (val) | Macro F1 | Weighted F1 | ms / image | img/s | Forward FLOPs (G) | Params |
 |--------|-----------|------------------|---------------------|----------|-------------|------------|-------|-------------------|--------|
-| Teacher (ResNet50) | **91.58%** | **76** | 8 | 0.9133 | 0.9148 | 46.94 | 21.30 | **5.40** | 23.52M |
-| Student (**KD, α=0.28**) | **91.58%** | **28** | 8 | 0.9131 | 0.9144 | 2.18 | 459.2 | **0.080** | 1.52M |
-| Student (**KD, high α=0.55**) *†* | — | — | — | — | — | — | — | **0.080** | 1.52M |
-| Student (**CE-only**) | **90.53%** | **54** | 9 | 0.9014 | 0.9039 | 2.13 | 470.2 | **0.080** | 1.52M |
+| Teacher (ResNet50) | **91.58%** | **76** | 8 | 0.9133 | 0.9148 | 85.97 | 11.6 | **5.40** | 23.52M |
+| Student (**KD, α=0.28**) | **91.58%** | **28** | 8 | 0.9131 | 0.9144 | 2.56 | 390.0 | **0.080** | 1.52M |
+| Student (**KD, high α=0.55**) | **91.58%** | **66** | 8 | 0.9131 | 0.9146 | 2.42 | 413.8 | **0.080** | 1.52M |
+| Student (**CE-only**) | **90.53%** | **54** | 9 | 0.9014 | 0.9039 | 2.63 | 380.0 | **0.080** | 1.52M |
 
 - **Best epoch** is the checkpoint epoch stored when that model achieved its best validation accuracy (`best_epoch` in `summary.json`).
-- **Inference** uses the first validation batch; effective batch size **24** matches `teacher.batch_size_val` in [`configs/default.yaml`](configs/default.yaml).
+- **Inference** uses the first validation batch; effective batch size **24** matches `teacher.batch_size_val` in [`configs/default.yaml`](configs/default.yaml). **ms/img** varies with CPU load; re-run `src.report` to refresh.
 - **Forward FLOPs** and **params** come from `models.<name>.flops` ( [**thop**](https://github.com/Lyken17/pytorch-FlopCounter): single forward on **CPU**, batch **1**, **256×256** RGB — `forward_gflops` and `num_params` in JSON). All MobileNet students share the same backbone, so FLOPs and parameter counts match; only training differs.
-- *†* **High-α KD:** Train with `python -m src.train_distill --variant high_alpha`, then `python -m src.report`. Copy **Val Top-1** (`overall_accuracy`), **best epoch**, **misclassified** count, **macro/weighted F1** (`classification_report`), and **ms/img / img/s** (`inference`) from `summary.json` → **`models.Student_KD_HighAlpha`**. Until that checkpoint exists, the report skips this model and those cells stay empty here.
 
 **KD vs CE-only** (`kd_vs_ce` in JSON): val Top-1 **+1.05 pp** (0.0105 absolute: 91.58% − 90.53%).
 
-**KD high-α vs default KD** (`kd_default_vs_high_alpha` in JSON): printed and written when both `student_best.pt` and `student_high_alpha_best.pt` are evaluated; read `absolute_gain_high_alpha_minus_default` for Δ Top-1 (high α − default).
+**KD high-α vs default KD** (`kd_default_vs_high_alpha` in JSON): on this run both students reached the same val Top-1 (**91.58%**), so **`absolute_gain_high_alpha_minus_default`** is **0** (per-class behavior still differs; see table below).
 
 ### Per-class validation accuracy (from `summary.json` → `per_class`)
 
 Support = number of validation images per class (same for every model). Values are **class accuracy** (fraction correct within that class).
 
-| Class (short) | Support | Teacher | Student KD (α=0.28) | KD high α *†* | Student CE |
-|-----------------|---------|---------|----------------------|---------------|------------|
-| Adobo | 20 | 100.0% | 100.0% | — | 100.0% |
-| Kare-kare | 18 | 77.8% | 100.0% | — | 94.4% |
-| Lechon | 18 | 88.9% | 77.8% | — | 72.2% |
-| Sinigang | 20 | 95.0% | 85.0% | — | 90.0% |
-| Sisig | 19 | 94.7% | 94.7% | — | 94.7% |
+| Class (short) | Support | Teacher | Student KD (α=0.28) | KD high α (0.55) | Student CE |
+|-----------------|---------|---------|----------------------|------------------|------------|
+| Adobo | 20 | 100.0% | 100.0% | 100.0% | 100.0% |
+| Kare-kare | 18 | 77.8% | 100.0% | 88.9% | 94.4% |
+| Lechon | 18 | 88.9% | 77.8% | 77.8% | 72.2% |
+| Sinigang | 20 | 95.0% | 85.0% | 95.0% | 90.0% |
+| Sisig | 19 | 94.7% | 94.7% | 94.7% | 94.7% |
 
-Use `per_class` under **`models.Student_KD_HighAlpha`** for the **KD high α** column after training (*†* same as overall table).
+### Confusion matrices (validation)
+
+Counts from the same run as [`reports/summary.json`](reports/summary.json). **Rows** = true class, **columns** = predicted class. Diagonal = correct. Regenerate with `python -m src.report --output-dir reports` (CSVs: `reports/confusion_<Model>.csv`).
+
+#### Teacher (ResNet50)
+
+| True \\ Pred | Adobo | Kare-kare | Lechon | Sinigang | Sisig |
+|--------------|------:|----------:|-------:|---------:|------:|
+| Adobo | 20 | 0 | 0 | 0 | 0 |
+| Kare-kare | 0 | 14 | 2 | 2 | 0 |
+| Lechon | 1 | 0 | 16 | 0 | 1 |
+| Sinigang | 0 | 0 | 1 | 19 | 0 |
+| Sisig | 1 | 0 | 0 | 0 | 18 |
+
+#### Student KD (α = 0.28)
+
+| True \\ Pred | Adobo | Kare-kare | Lechon | Sinigang | Sisig |
+|--------------|------:|----------:|-------:|---------:|------:|
+| Adobo | 20 | 0 | 0 | 0 | 0 |
+| Kare-kare | 0 | 18 | 0 | 0 | 0 |
+| Lechon | 2 | 1 | 14 | 0 | 1 |
+| Sinigang | 0 | 1 | 2 | 17 | 0 |
+| Sisig | 0 | 1 | 0 | 0 | 18 |
+
+#### Student KD, high α (0.55)
+
+| True \\ Pred | Adobo | Kare-kare | Lechon | Sinigang | Sisig |
+|--------------|------:|----------:|-------:|---------:|------:|
+| Adobo | 20 | 0 | 0 | 0 | 0 |
+| Kare-kare | 0 | 16 | 1 | 1 | 0 |
+| Lechon | 2 | 1 | 14 | 0 | 1 |
+| Sinigang | 0 | 0 | 1 | 19 | 0 |
+| Sisig | 1 | 0 | 0 | 0 | 18 |
+
+#### Student CE-only
+
+| True \\ Pred | Adobo | Kare-kare | Lechon | Sinigang | Sisig |
+|--------------|------:|----------:|-------:|---------:|------:|
+| Adobo | 20 | 0 | 0 | 0 | 0 |
+| Kare-kare | 0 | 17 | 1 | 0 | 0 |
+| Lechon | 2 | 2 | 13 | 0 | 1 |
+| Sinigang | 0 | 1 | 1 | 18 | 0 |
+| Sisig | 0 | 1 | 0 | 0 | 18 |
 
 ### Viewing misclassified images
 
-CSV lists: [`reports/misclassified_Teacher.csv`](reports/misclassified_Teacher.csv), [`reports/misclassified_Student_KD.csv`](reports/misclassified_Student_KD.csv), [`reports/misclassified_Student_CE.csv`](reports/misclassified_Student_CE.csv). With high-α KD trained, the report also writes **`misclassified_Student_KD_HighAlpha.csv`** (and matching confusion / gallery files).
+CSV lists: [`reports/misclassified_Teacher.csv`](reports/misclassified_Teacher.csv), [`reports/misclassified_Student_KD.csv`](reports/misclassified_Student_KD.csv), [`reports/misclassified_Student_KD_HighAlpha.csv`](reports/misclassified_Student_KD_HighAlpha.csv), [`reports/misclassified_Student_CE.csv`](reports/misclassified_Student_CE.csv).
 
 **HTML galleries** (thumbnails + true vs predicted labels):
 
 - [`reports/misclassified_gallery_Teacher.html`](reports/misclassified_gallery_Teacher.html)
 - [`reports/misclassified_gallery_Student_KD.html`](reports/misclassified_gallery_Student_KD.html)
-- [`reports/misclassified_gallery_Student_KD_HighAlpha.html`](reports/misclassified_gallery_Student_KD_HighAlpha.html) (after high-α checkpoint exists)
+- [`reports/misclassified_gallery_Student_KD_HighAlpha.html`](reports/misclassified_gallery_Student_KD_HighAlpha.html)
 - [`reports/misclassified_gallery_Student_CE.html`](reports/misclassified_gallery_Student_CE.html)
 
 Open each `.html` file in your browser (double-click or “Open with”). Paths use `../data/...` relative to `reports/` so images load from the project `data/` folder. If a browser blocks local files, try another browser or open via a simple local HTTP server.

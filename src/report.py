@@ -213,7 +213,7 @@ def main():
         print(f"Overall Top-1: {acc:.4f}")
         if flop_stats.get("status") == "ok":
             print(
-                f"FLOPs (forward, bs=1, {cfg['img_size']}×{cfg['img_size']}): "
+                f"FLOPs (forward, bs=1, {cfg['img_size']}x{cfg['img_size']}): "
                 f"{flop_stats['forward_gflops']:.3f} G  |  "
                 f"params: {flop_stats['num_params']:,}"
             )
@@ -309,7 +309,7 @@ def main():
             "student_ce_accuracy": ce_acc,
             "absolute_gain_kd_minus_ce": delta,
         }
-        print(f"KD vs CE-only (val Top-1): Δ = {delta:+.4f} (KD − CE)")
+        print(f"KD vs CE-only (val Top-1): delta = {delta:+.4f} (KD - CE)")
 
     if kd_acc is not None and kd_high_alpha_acc is not None:
         delta_h = kd_high_alpha_acc - kd_acc
@@ -319,8 +319,8 @@ def main():
             "absolute_gain_high_alpha_minus_default": delta_h,
         }
         print(
-            "KD high-α vs default KD (val Top-1): "
-            f"Δ = {delta_h:+.4f} (high α − default)",
+            "KD high-alpha vs default KD (val Top-1): "
+            f"delta = {delta_h:+.4f} (high_alpha - default)",
             flush=True,
         )
 
