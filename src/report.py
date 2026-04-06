@@ -16,6 +16,7 @@ from src.eval_metrics import (
     collect_misclassified_paths,
     collect_predictions,
     compute_confusion_matrix,
+    forward_flop_stats,
     inference_benchmark,
     overall_accuracy,
     per_class_metrics,
@@ -166,6 +167,8 @@ def main():
             model = build_student(nc).to(device)
         model.load_state_dict(ckpt["model_state_dict"])
 
+        flop_stats = forward_flop_stats(model, int(cfg["img_size"]))
+
         y_true, y_pred = collect_predictions(model, val_loader, device)
         mistakes = collect_misclassified_paths(
             model, val_loader, device, class_names
@@ -192,10 +195,21 @@ def main():
             "per_class": pcm,
             "classification_report": rep,
             "inference": bench,
+            "flops": flop_stats,
         }
 
         print(f"=== {display_name} ({rel_path}) ===")
         print(f"Overall Top-1: {acc:.4f}")
+        if flop_stats.get("status") == "ok":
+            print(
+                f"FLOPs (forward, bs=1, {cfg['img_size']}×{cfg['img_size']}): "
+                f"{flop_stats['forward_gflops']:.3f} G  |  "
+                f"params: {flop_stats['num_params']:,}"
+            )
+        else:
+            print(
+                f"FLOPs: n/a ({flop_stats.get('reason', flop_stats.get('status', ''))})"
+            )
         print(
             f"Inference: {bench['ms_per_image']:.3f} ms/img, "
             f"{bench['images_per_sec']:.1f} img/s "

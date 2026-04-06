@@ -10,6 +10,7 @@
     "Teacher": {
       "status": "ok",
       "checkpoint": "checkpoints/teacher_best.pt",
+      "best_epoch": 76,
       "overall_accuracy": 0.9157894736842105,
       "misclassified_count": 8,
       "per_class": [
@@ -96,15 +97,24 @@
       },
       "inference": {
         "batch_size": 24.0,
-        "ms_per_image": 47.42704850000033,
-        "images_per_sec": 21.085014387939257,
+        "ms_per_image": 46.93881874999837,
+        "images_per_sec": 21.304328200633186,
         "warmup_steps": 20.0,
         "timed_steps": 100.0
+      },
+      "flops": {
+        "status": "ok",
+        "batch_size": 1,
+        "input_size": 256,
+        "forward_flops": 5396508672,
+        "forward_gflops": 5.396508672,
+        "num_params": 23518277
       }
     },
     "Student_KD": {
       "status": "ok",
       "checkpoint": "checkpoints/student_best.pt",
+      "best_epoch": 28,
       "overall_accuracy": 0.9157894736842105,
       "misclassified_count": 8,
       "per_class": [
@@ -191,15 +201,24 @@
       },
       "inference": {
         "batch_size": 24.0,
-        "ms_per_image": 2.164370874997985,
-        "images_per_sec": 462.02802465678667,
+        "ms_per_image": 2.177565208330634,
+        "images_per_sec": 459.2284980373196,
         "warmup_steps": 20.0,
         "timed_steps": 100.0
+      },
+      "flops": {
+        "status": "ok",
+        "batch_size": 1,
+        "input_size": 256,
+        "forward_flops": 79949624,
+        "forward_gflops": 0.079949624,
+        "num_params": 1522981
       }
     },
     "Student_CE": {
       "status": "ok",
       "checkpoint": "checkpoints/student_baseline_best.pt",
+      "best_epoch": 54,
       "overall_accuracy": 0.9052631578947369,
       "misclassified_count": 9,
       "per_class": [
@@ -286,12 +305,25 @@
       },
       "inference": {
         "batch_size": 24.0,
-        "ms_per_image": 2.372931874997448,
-        "images_per_sec": 421.4195993305014,
+        "ms_per_image": 2.126948250000472,
+        "images_per_sec": 470.1571841250854,
         "warmup_steps": 20.0,
         "timed_steps": 100.0
+      },
+      "flops": {
+        "status": "ok",
+        "batch_size": 1,
+        "input_size": 256,
+        "forward_flops": 79949624,
+        "forward_gflops": 0.079949624,
+        "num_params": 1522981
       }
     }
+  },
+  "validation": {
+    "num_samples": 95,
+    "val_ratio": 0.2,
+    "split_seed": 42
   },
   "kd_vs_ce": {
     "student_kd_accuracy": 0.9157894736842105,

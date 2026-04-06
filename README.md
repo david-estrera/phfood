@@ -218,7 +218,7 @@ python -m src.report --output-dir reports
 
 Artifacts (default under `reports/`):
 
-- `summary.json` — machine-readable metrics and timing; includes `kd_vs_ce` (KD minus CE Top-1) when both students exist.
+- `summary.json` — machine-readable metrics, timing, and per-model `flops` (thop: forward pass, batch 1, `img_size`×`img_size`); includes `kd_vs_ce` (KD minus CE Top-1) when both students exist.
 - `confusion_<Model>.csv` — confusion matrix per model.
 - `misclassified_<Model>.csv` — full path of each wrong validation image, true vs predicted class.
 - `misclassified_gallery_<Model>.html` — thumbnail grid in the browser (True vs predicted labels); open the file locally after running the report.
@@ -247,14 +247,15 @@ Figures below match the committed run documented in [`reports/summary.json`](rep
 
 ### Overall metrics (from `summary.json`)
 
-| Model | Val Top-1 | Best epoch (val) | Misclassified (val) | Macro F1 | Weighted F1 | ms / image | img/s |
-|--------|-----------|------------------|---------------------|----------|-------------|------------|-------|
-| Teacher (ResNet50) | **91.58%** | **114** | 8 | 0.9133 | 0.9148 | 47.43 | 21.09 |
-| Student (**with KD**) | **91.58%** | **25** | 8 | 0.9131 | 0.9144 | 2.16 | 462.0 |
-| Student (**CE-only**) | **90.53%** | **55** | 9 | 0.9014 | 0.9039 | 2.37 | 421.4 |
+| Model | Val Top-1 | Best epoch (val) | Misclassified (val) | Macro F1 | Weighted F1 | ms / image | img/s | Forward FLOPs (G) | Params |
+|--------|-----------|------------------|---------------------|----------|-------------|------------|-------|-------------------|--------|
+| Teacher (ResNet50) | **91.58%** | **76** | 8 | 0.9133 | 0.9148 | 46.94 | 21.30 | **5.40** | 23.52M |
+| Student (**with KD**) | **91.58%** | **28** | 8 | 0.9131 | 0.9144 | 2.18 | 459.2 | **0.080** | 1.52M |
+| Student (**CE-only**) | **90.53%** | **54** | 9 | 0.9014 | 0.9039 | 2.13 | 470.2 | **0.080** | 1.52M |
 
-- **Best epoch** is the checkpoint epoch stored when that model achieved its best validation accuracy (also written as `best_epoch` per model in `summary.json` after you re-run the report).
+- **Best epoch** is the checkpoint epoch stored when that model achieved its best validation accuracy (`best_epoch` in `summary.json`).
 - **Inference** uses the first validation batch; effective batch size **24** matches `teacher.batch_size_val` in [`configs/default.yaml`](configs/default.yaml).
+- **Forward FLOPs** and **params** come from `models.<name>.flops` ( [**thop**](https://github.com/Lyken17/pytorch-FlopCounter): single forward on **CPU**, batch **1**, **256×256** RGB — `forward_gflops` and `num_params` in JSON). KD and CE students share the same backbone, so FLOPs and parameter counts match; only training differs.
 
 **KD vs CE-only** (`kd_vs_ce` in JSON): val Top-1 **+1.05 pp** (0.0105 absolute: 91.58% − 90.53%).
 

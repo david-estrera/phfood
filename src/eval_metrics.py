@@ -163,3 +163,57 @@ def inference_benchmark(
         "warmup_steps": float(warmup_steps),
         "timed_steps": float(timed_steps),
     }
+
+
+def _scalar_to_int(x: Any) -> int:
+    if hasattr(x, "item"):
+        return int(x.item())
+    return int(x)
+
+
+def forward_flop_stats(model: torch.nn.Module, img_size: int) -> dict[str, Any]:
+    """
+    Approximate forward-pass FLOPs and parameter count (batch size 1, square RGB input).
+    Runs on CPU via thop for consistent results across CUDA/XPU/CPU training devices.
+    """
+    try:
+        from thop import profile
+    except ImportError:
+        return {
+            "status": "skipped",
+            "reason": "thop not installed (pip install thop)",
+        }
+
+    was_training = model.training
+    model.eval()
+    dev = next(model.parameters()).device
+    h = w = int(img_size)
+    try:
+        model.cpu()
+        dummy = torch.randn(1, 3, h, w, dtype=torch.float32)
+        with torch.no_grad():
+            flops, params = profile(model, inputs=(dummy,), verbose=False)
+        fwd = _scalar_to_int(flops)
+        prm = _scalar_to_int(params)
+    except Exception as e:  # noqa: BLE001 — surface any hook/backend failure
+        model.to(dev)
+        if was_training:
+            model.train()
+        else:
+            model.eval()
+        return {"status": "error", "reason": repr(e)}
+
+    model.to(dev)
+    if was_training:
+        model.train()
+    else:
+        model.eval()
+
+    return {
+        "status": "ok",
+        "batch_size": 1,
+        "input_size": h,
+        "forward_flops": fwd,
+        "forward_gflops": fwd / 1e9,
+        "num_params": prm,
+    }
