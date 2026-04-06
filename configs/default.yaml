@@ -32,7 +32,7 @@ teacher:
 student:
   batch_size_train: 24
   batch_size_val: 32
-  epochs: 140
+  epochs: 80
   lr: 0.0015
   max_lr: 0.004
   weight_decay: 0.025
@@ -46,10 +46,18 @@ distillation:
   alpha: 0.28
   label_smoothing: 0.04
 
+# Second KD run: higher alpha (more weight on KL vs teacher soft targets).
+# Saves to student_high_alpha (does not touch student_best.pt).
+distillation_high_alpha:
+  temperature: 5.0
+  alpha: 0.55
+  label_smoothing: 0.04
+
 checkpoints:
   dir: checkpoints
   teacher: checkpoints/teacher_best.pt
   student: checkpoints/student_best.pt
+  student_high_alpha: checkpoints/student_high_alpha_best.pt
   student_baseline: checkpoints/student_baseline_best.pt
 
 target_val_acc: 0.93

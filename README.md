@@ -93,7 +93,7 @@ phfood/
 ├── configs/
 │   └── default.yaml          # hyperparameters, aug, KD, checkpoints
 ├── data/                     # class subfolders (not committed)
-├── checkpoints/              # teacher_best.pt, student_best.pt
+├── checkpoints/              # teacher_best.pt, student_best.pt, optional *_baseline / *_high_alpha
 ├── src/
 │   ├── data.py               # transforms, stratified train/val split
 │   ├── models.py             # teacher & student builders
@@ -197,6 +197,16 @@ Optional: `python -m src.train_teacher --epochs N` (override epochs from YAML).
 
 Hyperparameters, augmentation (RandAugment, Random Erasing), image size, two-phase teacher settings, distillation `temperature` / `alpha`, and checkpoint paths live in [`configs/default.yaml`](configs/default.yaml).
 
+### Optional: second KD student (higher α)
+
+To experiment with **more weight on the KL term** (vs cross-entropy on labels), train a separate student using `distillation_high_alpha` in config (default **α = 0.55** vs **0.28** for the main run). Weights are saved to **`checkpoints/student_high_alpha_best.pt`** and do **not** replace **`student_best.pt`**.
+
+```bash
+python -m src.train_distill --variant high_alpha
+```
+
+[`src/report.py`](src/report.py) and [`src/benchmark.py`](src/benchmark.py) pick up this checkpoint as **Student_KD_HighAlpha** when the file exists (otherwise it is skipped).
+
 ### Baseline student (no knowledge distillation)
 
 To measure **how much KD helps**, train a second MobileNetV3-Small with **cross-entropy only** (same `student` hyperparameters and data setup as distillation). It saves to a **separate** file so your reported KD checkpoints stay untouched:
@@ -210,7 +220,7 @@ python -m src.train_student_baseline
 
 ### Full report (per-class accuracy, confusion CSV, inference time)
 
-[`src/report.py`](src/report.py) evaluates **Teacher**, **Student_KD** (`student_best.pt`), and **Student_CE** (baseline, if present) on the same validation split: overall Top-1, per-class counts/accuracy, sklearn-style `classification_report` in `summary.json`, confusion matrices as CSV, and inference timing (same logic as `benchmark.py`).
+[`src/report.py`](src/report.py) evaluates **Teacher**, **Student_KD** (`student_best.pt`), **Student_KD_HighAlpha** (`student_high_alpha_best.pt`, if trained), and **Student_CE** (baseline, if present) on the same validation split: overall Top-1, per-class counts/accuracy, sklearn-style `classification_report` in `summary.json`, confusion matrices as CSV, and inference timing (same logic as `benchmark.py`).
 
 ```bash
 python -m src.report --output-dir reports
@@ -218,7 +228,7 @@ python -m src.report --output-dir reports
 
 Artifacts (default under `reports/`):
 
-- `summary.json` — machine-readable metrics, timing, and per-model `flops` (thop: forward pass, batch 1, `img_size`×`img_size`); includes `kd_vs_ce` (KD minus CE Top-1) when both students exist.
+- `summary.json` — machine-readable metrics, timing, and per-model `flops` (thop: forward pass, batch 1, `img_size`×`img_size`); includes `kd_vs_ce` (default KD minus CE Top-1) when both exist, and **`kd_default_vs_high_alpha`** (high-α KD minus default KD Top-1) when both KD checkpoints exist. Optional model key **`Student_KD_HighAlpha`** appears after `python -m src.train_distill --variant high_alpha`.
 - `confusion_<Model>.csv` — confusion matrix per model.
 - `misclassified_<Model>.csv` — full path of each wrong validation image, true vs predicted class.
 - `misclassified_gallery_<Model>.html` — thumbnail grid in the browser (True vs predicted labels); open the file locally after running the report.
@@ -228,7 +238,7 @@ For a quick **latency-only** comparison (including baseline if trained), use `py
 
 ### Checkpoints for final reporting
 
-Keep **`checkpoints/teacher_best.pt`** and **`checkpoints/student_best.pt`** as your frozen KD run for the write-up. Use **`student_baseline_best.pt`** only for the ablation comparison; retraining baseline does not change the two KD checkpoints.
+Keep **`checkpoints/teacher_best.pt`** and **`checkpoints/student_best.pt`** as your frozen KD run for the write-up. **`student_high_alpha_best.pt`** is an optional extra KD experiment; **`student_baseline_best.pt`** is for the CE-only ablation. Retraining baseline or high-α student does not overwrite the default KD checkpoint.
 
 ## Results
 
@@ -250,35 +260,42 @@ Figures below match the committed run documented in [`reports/summary.json`](rep
 | Model | Val Top-1 | Best epoch (val) | Misclassified (val) | Macro F1 | Weighted F1 | ms / image | img/s | Forward FLOPs (G) | Params |
 |--------|-----------|------------------|---------------------|----------|-------------|------------|-------|-------------------|--------|
 | Teacher (ResNet50) | **91.58%** | **76** | 8 | 0.9133 | 0.9148 | 46.94 | 21.30 | **5.40** | 23.52M |
-| Student (**with KD**) | **91.58%** | **28** | 8 | 0.9131 | 0.9144 | 2.18 | 459.2 | **0.080** | 1.52M |
+| Student (**KD, α=0.28**) | **91.58%** | **28** | 8 | 0.9131 | 0.9144 | 2.18 | 459.2 | **0.080** | 1.52M |
+| Student (**KD, high α=0.55**) *†* | — | — | — | — | — | — | — | **0.080** | 1.52M |
 | Student (**CE-only**) | **90.53%** | **54** | 9 | 0.9014 | 0.9039 | 2.13 | 470.2 | **0.080** | 1.52M |
 
 - **Best epoch** is the checkpoint epoch stored when that model achieved its best validation accuracy (`best_epoch` in `summary.json`).
 - **Inference** uses the first validation batch; effective batch size **24** matches `teacher.batch_size_val` in [`configs/default.yaml`](configs/default.yaml).
-- **Forward FLOPs** and **params** come from `models.<name>.flops` ( [**thop**](https://github.com/Lyken17/pytorch-FlopCounter): single forward on **CPU**, batch **1**, **256×256** RGB — `forward_gflops` and `num_params` in JSON). KD and CE students share the same backbone, so FLOPs and parameter counts match; only training differs.
+- **Forward FLOPs** and **params** come from `models.<name>.flops` ( [**thop**](https://github.com/Lyken17/pytorch-FlopCounter): single forward on **CPU**, batch **1**, **256×256** RGB — `forward_gflops` and `num_params` in JSON). All MobileNet students share the same backbone, so FLOPs and parameter counts match; only training differs.
+- *†* **High-α KD:** Train with `python -m src.train_distill --variant high_alpha`, then `python -m src.report`. Copy **Val Top-1** (`overall_accuracy`), **best epoch**, **misclassified** count, **macro/weighted F1** (`classification_report`), and **ms/img / img/s** (`inference`) from `summary.json` → **`models.Student_KD_HighAlpha`**. Until that checkpoint exists, the report skips this model and those cells stay empty here.
 
 **KD vs CE-only** (`kd_vs_ce` in JSON): val Top-1 **+1.05 pp** (0.0105 absolute: 91.58% − 90.53%).
+
+**KD high-α vs default KD** (`kd_default_vs_high_alpha` in JSON): printed and written when both `student_best.pt` and `student_high_alpha_best.pt` are evaluated; read `absolute_gain_high_alpha_minus_default` for Δ Top-1 (high α − default).
 
 ### Per-class validation accuracy (from `summary.json` → `per_class`)
 
 Support = number of validation images per class (same for every model). Values are **class accuracy** (fraction correct within that class).
 
-| Class (short) | Support | Teacher | Student KD | Student CE |
-|-----------------|---------|---------|------------|------------|
-| Adobo | 20 | 100.0% | 100.0% | 100.0% |
-| Kare-kare | 18 | 77.8% | 100.0% | 94.4% |
-| Lechon | 18 | 88.9% | 77.8% | 72.2% |
-| Sinigang | 20 | 95.0% | 85.0% | 90.0% |
-| Sisig | 19 | 94.7% | 94.7% | 94.7% |
+| Class (short) | Support | Teacher | Student KD (α=0.28) | KD high α *†* | Student CE |
+|-----------------|---------|---------|----------------------|---------------|------------|
+| Adobo | 20 | 100.0% | 100.0% | — | 100.0% |
+| Kare-kare | 18 | 77.8% | 100.0% | — | 94.4% |
+| Lechon | 18 | 88.9% | 77.8% | — | 72.2% |
+| Sinigang | 20 | 95.0% | 85.0% | — | 90.0% |
+| Sisig | 19 | 94.7% | 94.7% | — | 94.7% |
+
+Use `per_class` under **`models.Student_KD_HighAlpha`** for the **KD high α** column after training (*†* same as overall table).
 
 ### Viewing misclassified images
 
-CSV lists: [`reports/misclassified_Teacher.csv`](reports/misclassified_Teacher.csv), [`reports/misclassified_Student_KD.csv`](reports/misclassified_Student_KD.csv), [`reports/misclassified_Student_CE.csv`](reports/misclassified_Student_CE.csv).
+CSV lists: [`reports/misclassified_Teacher.csv`](reports/misclassified_Teacher.csv), [`reports/misclassified_Student_KD.csv`](reports/misclassified_Student_KD.csv), [`reports/misclassified_Student_CE.csv`](reports/misclassified_Student_CE.csv). With high-α KD trained, the report also writes **`misclassified_Student_KD_HighAlpha.csv`** (and matching confusion / gallery files).
 
 **HTML galleries** (thumbnails + true vs predicted labels):
 
 - [`reports/misclassified_gallery_Teacher.html`](reports/misclassified_gallery_Teacher.html)
 - [`reports/misclassified_gallery_Student_KD.html`](reports/misclassified_gallery_Student_KD.html)
+- [`reports/misclassified_gallery_Student_KD_HighAlpha.html`](reports/misclassified_gallery_Student_KD_HighAlpha.html) (after high-α checkpoint exists)
 - [`reports/misclassified_gallery_Student_CE.html`](reports/misclassified_gallery_Student_CE.html)
 
 Open each `.html` file in your browser (double-click or “Open with”). Paths use `../data/...` relative to `reports/` so images load from the project `data/` folder. If a browser blocks local files, try another browser or open via a simple local HTTP server.

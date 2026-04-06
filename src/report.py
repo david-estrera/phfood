@@ -142,6 +142,11 @@ def main():
     jobs: list[tuple[str, str, str]] = [
         ("Teacher", "teacher", ckpt_cfg["teacher"]),
         ("Student_KD", "student", ckpt_cfg["student"]),
+        (
+            "Student_KD_HighAlpha",
+            "student",
+            ckpt_cfg.get("student_high_alpha", ""),
+        ),
         ("Student_CE", "student", ckpt_cfg.get("student_baseline", "")),
     ]
 
@@ -150,6 +155,7 @@ def main():
         "models": {},
     }
     kd_acc: float | None = None
+    kd_high_alpha_acc: float | None = None
     ce_acc: float | None = None
 
     for display_name, kind, rel_path in jobs:
@@ -183,10 +189,12 @@ def main():
 
         if display_name == "Student_KD":
             kd_acc = acc
+        if display_name == "Student_KD_HighAlpha":
+            kd_high_alpha_acc = acc
         if display_name == "Student_CE":
             ce_acc = acc
 
-        summary["models"][display_name] = {
+        model_entry: dict = {
             "status": "ok",
             "checkpoint": str(rel_path),
             "best_epoch": ckpt.get("epoch"),
@@ -197,6 +205,9 @@ def main():
             "inference": bench,
             "flops": flop_stats,
         }
+        if kind == "student" and isinstance(ckpt.get("distillation"), dict):
+            model_entry["distillation"] = ckpt["distillation"]
+        summary["models"][display_name] = model_entry
 
         print(f"=== {display_name} ({rel_path}) ===")
         print(f"Overall Top-1: {acc:.4f}")
@@ -299,6 +310,19 @@ def main():
             "absolute_gain_kd_minus_ce": delta,
         }
         print(f"KD vs CE-only (val Top-1): Δ = {delta:+.4f} (KD − CE)")
+
+    if kd_acc is not None and kd_high_alpha_acc is not None:
+        delta_h = kd_high_alpha_acc - kd_acc
+        summary["kd_default_vs_high_alpha"] = {
+            "student_kd_accuracy": kd_acc,
+            "student_kd_high_alpha_accuracy": kd_high_alpha_acc,
+            "absolute_gain_high_alpha_minus_default": delta_h,
+        }
+        print(
+            "KD high-α vs default KD (val Top-1): "
+            f"Δ = {delta_h:+.4f} (high α − default)",
+            flush=True,
+        )
 
     json_path = out_dir / "summary.json"
 

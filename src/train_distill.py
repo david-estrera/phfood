@@ -131,12 +131,39 @@ def main():
         default=None,
         help="Override student epochs from config",
     )
+    parser.add_argument(
+        "--variant",
+        type=str,
+        choices=("default", "high_alpha"),
+        default="default",
+        help=(
+            "default: distillation + checkpoints.student -> student_best.pt. "
+            "high_alpha: distillation_high_alpha + checkpoints.student_high_alpha "
+            "(separate file; does not replace student_best.pt)."
+        ),
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)
     root = project_root()
     teacher_path = root / cfg["checkpoints"]["teacher"]
-    student_path = root / cfg["checkpoints"]["student"]
+    ck = cfg["checkpoints"]
+    if args.variant == "default":
+        student_path = root / ck["student"]
+        dcfg = cfg["distillation"]
+    else:
+        if "distillation_high_alpha" not in cfg:
+            raise KeyError(
+                "Config missing distillation_high_alpha (required for --variant high_alpha)"
+            )
+        rel = ck.get("student_high_alpha")
+        if not rel:
+            raise KeyError(
+                "Config missing checkpoints.student_high_alpha "
+                "(required for --variant high_alpha)"
+            )
+        student_path = root / rel
+        dcfg = cfg["distillation_high_alpha"]
     student_path.parent.mkdir(parents=True, exist_ok=True)
 
     if not teacher_path.is_file():
@@ -146,10 +173,14 @@ def main():
 
     device = get_device()
     print(f"Device: {device}")
+    print(
+        f"KD variant: {args.variant}  ->  {student_path}  "
+        f"(alpha={float(dcfg['alpha'])}, T={float(dcfg['temperature'])})",
+        flush=True,
+    )
 
     data_root = resolve_data_root(cfg)
     scfg = cfg["student"]
-    dcfg = cfg["distillation"]
     epochs = int(args.epochs) if args.epochs is not None else int(scfg["epochs"])
     train_loader, val_loader, classes = make_loaders(
         data_root,
@@ -247,6 +278,7 @@ def main():
                     "distillation": {
                         "temperature": dcfg["temperature"],
                         "alpha": dcfg["alpha"],
+                        "variant": args.variant,
                     },
                     "config_meta": {
                         "img_size": cfg["img_size"],

@@ -77,6 +77,11 @@ def main():
         ("Teacher (ResNet50)", "teacher", ck["teacher"]),
         ("Student (MobileNetV3-Small, KD)", "student", ck["student"]),
     ]
+    ha = ck.get("student_high_alpha")
+    if ha:
+        paths.append(
+            ("Student (MobileNetV3-Small, KD high α)", "student", ha)
+        )
     bl = ck.get("student_baseline")
     if bl:
         paths.append(
